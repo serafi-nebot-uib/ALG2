@@ -1,8 +1,11 @@
 package com.example.efficientsorting;
 
+import android.util.Log;
+
 import java.util.Random;
 
 public class Sorting {
+    public static final Integer MAX_VAL = 100;
     public static String printArray(int [] arr) {
         StringBuilder str = new StringBuilder();
         int m = arr.length, i = 0;
@@ -28,6 +31,7 @@ public class Sorting {
             int tmp = arr[m];
             arr[m] = arr[i];
             arr[i] = tmp;
+            MainActivity.repaint(arr);
         }
     }
 }
