@@ -84,11 +84,11 @@ public class MainActivity extends AppCompatActivity {
             canvas.drawRect(new Rect(0, 0, width, height), paint);
 
             paint.setColor(Color.YELLOW);
-            int barWidth = width / arr.length;
+            float barWidth = width / (float) arr.length;
             int barHeight = height / Sorting.MAX_VAL;
             for (int i = 0; i < arr.length; i++) {
-                int l = i*barWidth;
-                canvas.drawRect(new Rect(l, height-arr[i]*barHeight, l+barWidth, height), paint);
+                float l = i*barWidth;
+                canvas.drawRect(new Rect((int)l, height-arr[i]*barHeight, (int)(l+barWidth), height), paint);
             }
 
             drawing.getHolder().unlockCanvasAndPost(canvas);
