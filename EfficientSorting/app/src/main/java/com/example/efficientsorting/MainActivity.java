@@ -40,6 +40,7 @@ public class MainActivity extends AppCompatActivity {
         drawing = findViewById(R.id.surfaceView);
         Button runButton = findViewById(R.id.runButton);
         TextView randomTextView = findViewById(R.id.randomTextView);
+        TextView linkedListTextView = findViewById(R.id.linkedListTextView);
         TextView orderedTextView = findViewById(R.id.orderedTextView);
         TextView totalTimeTextView = findViewById(R.id.totalTimeTextView);
         EditText lengthInput = findViewById(R.id.lengthTextInput);
@@ -48,7 +49,10 @@ public class MainActivity extends AppCompatActivity {
             int n = Integer.parseInt(lengthInput.getText().toString());
             Log.d(TAG, String.format("array length: %d", n));
             int[] arr = Sorting.generateRandomArray(n);
+            LinkedList<Integer> list = new LinkedList<>();
+            for (int i = arr.length-1; i >= 0; i--) list.add(arr[i]);
             randomTextView.setText(String.format("Random array: %s", Sorting.printArray(arr)));
+            linkedListTextView.setText(String.format("Linked list: %s", list));
 
             Thread thread = new Thread() {
                 @Override
@@ -58,7 +62,9 @@ public class MainActivity extends AppCompatActivity {
                         totalTimeTextView.setText("Total time (ms): ");
                     });
                     long start = System.currentTimeMillis();
-                    Sorting.selectionSort(arr);
+//                    Sorting.selectionSort(arr);
+//                    Sorting.quickSort(arr, 0, arr.length-1);
+                    Sorting.mergeSort(arr, 0, arr.length-1);
                     long time = System.currentTimeMillis() - start;
                     runOnUiThread(() -> {
                         orderedTextView.setText(String.format("Ordered array: %s", Sorting.printArray(arr)));

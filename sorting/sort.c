@@ -53,8 +53,7 @@ void selection(int *arr, unsigned int len) {
     }
 }
 
-void _quicksort(int *arr, unsigned int l, unsigned int r) {
-    if ((int)(r - l) < 1) return;
+unsigned int partition(int *arr, unsigned int l, unsigned int r) {
     unsigned int s = l, p = r;
     for (unsigned int i = s; i < p; i++) {
         if (arr[i] >= arr[p]) continue;
@@ -62,6 +61,12 @@ void _quicksort(int *arr, unsigned int l, unsigned int r) {
         s++;
     }
     swap(arr[s], arr[p]);
+    return s;
+}
+
+void _quicksort(int *arr, unsigned int l, unsigned int r) {
+    if ((int)(r - l) < 1) return;
+    unsigned int s = partition(arr, l, r);
     _quicksort(arr, l, s-1);
     _quicksort(arr, s+1, r);
 }
@@ -78,6 +83,39 @@ void qsort_internal(int *arr, unsigned int len) {
     qsort(arr, len, sizeof(*arr), compare);
 }
 
+void __merge(int *arr, unsigned int l, unsigned int m, unsigned int r) {
+    int lsz = m-l+1;
+    int *larr = (int *) malloc(lsz*sizeof(*larr));
+    if (larr == NULL) goto exit;
+    for (unsigned int i = 0; i < lsz; i++) larr[i] = arr[l+i];
+
+    int rsz = r-m;
+    int *rarr = (int *) malloc(rsz*sizeof(*rarr));
+    if (rarr == NULL) goto exit;
+    for (unsigned int i = 0; i < rsz; i++) rarr[i] = arr[m+1+i];
+
+    unsigned int i = 0, j = 0, k = l;
+    while (i < lsz && j < rsz) arr[k++] = larr[i] < rarr[j] ? larr[i++] : rarr[j++];
+    while (i < lsz) arr[k++] = larr[i++];
+    while (j < rsz) arr[k++] = rarr[j++];
+
+exit:
+    if (larr != NULL) free(larr);
+    if (rarr != NULL) free(rarr);
+}
+
+void __mergesort(int *arr, unsigned int l, unsigned int r) {
+    if (l >= r) return;
+    int m = (l+r)/2;
+    __mergesort(arr, l, m);
+    __mergesort(arr, m+1, r);
+    __merge(arr, l, m, r);
+}
+
+void _mergesort(int *arr, unsigned int len) {
+    __mergesort(arr, 0, len-1);
+}
+
 int main(int argc, char **argv) {
     if (argc < 2) return -1;
 
@@ -85,13 +123,14 @@ int main(int argc, char **argv) {
     int *src = (int *) malloc(n * sizeof(int));
     if (src == NULL) return -1;
 
-    // srand(0);
-    srand(time(NULL));
+    srand(0);
+    // srand(time(NULL));
     for (unsigned int i = 0; i < n; i++) src[i] = rand() % (MAX - MIN + 1) + MIN;
 
     test("selection", selection, src, n);
     test("quicksort", quicksort, src, n);
     test("qsort", qsort_internal, src, n);
+    test("mergesort", _mergesort, src, n);
 
     free(src);
 
