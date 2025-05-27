@@ -4,7 +4,7 @@
 #include <string.h>
 #include <ctype.h>
 
-#define WORD_DELIM " ,.;:\r\n\t~¡!@#$%^&*()=+[{]}\\|'\"<>/?¿—"
+#define WORD_DELIM " ,.;:\r\n\t~¡!@#$%^&*()=+[{]}\\|'\"<>/?¿—«»"
 #define MAX_CHILD_CNT 0x100
 #define MAX_WORD_LEN 32
 
@@ -20,6 +20,89 @@ typedef struct word_stats {
     uint32_t count;
     struct word_stats *next;
 } word_stats_t;
+
+word_stats_t *word_stat_init() {
+    word_stats_t *new = (word_stats_t *) malloc(sizeof(word_stats_t));
+    memset(new->word, 0, MAX_WORD_LEN);
+    new->next = NULL;
+    return new;
+}
+
+word_stats_t *word_stats(word_stats_t *prev_stat, node_t *const root, char *prev_name) {
+    size_t n = strlen(prev_name);
+    char name[MAX_WORD_LEN] = {};
+    strncpy(name, prev_name, sizeof(name) / sizeof(*name));
+    name[n + 1] = 0;
+
+    if (root->valid) {
+        word_stats_t *new = word_stat_init();
+        if (new == NULL) {
+            printf("failed to reserve space for word stat\n");
+            return prev_stat;
+        }
+        strncpy(new->word, name, MAX_WORD_LEN);
+        new->count = root->value;
+        prev_stat->next = new;
+        prev_stat = new;
+        // printf("new word: %s (%u)\n", new->word, new->count);
+    }
+
+    for (size_t i = 0; i < MAX_CHILD_CNT; i++) {
+        if (!root->childs[i]) continue;
+        name[n] = (char) i;
+        prev_stat = word_stats(prev_stat, root->childs[i], name);
+    }
+
+    return prev_stat;
+}
+
+void word_stats_print(word_stats_t *stat) {
+    while (stat != NULL) {
+        printf("%-*s %u\n", MAX_WORD_LEN, stat->word, stat->count);
+        stat = stat->next;
+    }
+}
+
+int word_stat_cmp(word_stats_t *a, word_stats_t *b) {
+    if (a->count == b->count) return strcmp(a->word, b->word);
+    return a->count < b->count;
+}
+
+word_stats_t *merge_sorted(word_stats_t *a, word_stats_t *b) {
+    word_stats_t dummy = { .next = NULL }, *tail = &dummy;
+    while (a && b) {
+        if (word_stat_cmp(a, b) <= 0) {
+            tail->next = a;
+            a = a->next;
+        } else {
+            tail->next = b;
+            b = b->next;
+        }
+        tail = tail->next;
+    }
+    tail->next = a ? a : b;
+    return dummy.next;
+}
+
+word_stats_t *merge_sort(word_stats_t *head) {
+    if (!head || !head->next) return head;  // 0 or 1 element → already sorted
+
+    // 1) split in half
+    word_stats_t *slow = head, *fast = head->next;
+    while (fast && fast->next) {
+        slow = slow->next;
+        fast = fast->next->next;
+    }
+    word_stats_t *mid = slow->next;
+    slow->next = NULL;
+
+    // 2) sort each half
+    word_stats_t *left  = merge_sort(head);
+    word_stats_t *right = merge_sort(mid);
+
+    // 3) merge & return
+    return merge_sorted(left, right);
+}
 
 // TODO: malloc null checks
 node_t *trie_init(uint8_t key, uint32_t value) {
@@ -40,7 +123,7 @@ node_t *trie_add(node_t *const root, const char *const key, const uint32_t value
     node_t *curr = root;
 
     while (*k) {
-        if (curr->childs[*k] == NULL) curr->childs[*k] = trie_init(*k, 0); 
+        if (curr->childs[*k] == NULL) curr->childs[*k] = trie_init(*k, 0);
         prev = curr;
         curr = curr->childs[*k];
         k++;
@@ -75,7 +158,7 @@ void trie_deinit(node_t *const root, int depth) {
     if (root == NULL) return;
     for (size_t i = 0; i < MAX_CHILD_CNT; i++) {
         if (!root->childs[i]) continue;
-        trie_deinit(root->childs[i], depth+1);
+        trie_deinit(root->childs[i], depth + 1);
     }
     free(root);
 }
@@ -84,20 +167,18 @@ void trie_print(node_t *const root, uint8_t depth) {
     for (size_t i = 0; i < MAX_CHILD_CNT; i++) {
         if (!root->childs[i]) continue;
         printf("%*c\n", depth * 2 + 1, (char) i);
-        trie_print(root->childs[i], depth+1);
+        trie_print(root->childs[i], depth + 1);
     }
 }
 
 void trie_valid(node_t *const root, char *prev) {
-
     size_t n = strlen(prev);
-    char name[128] = {};
+    if (n - 2 >= MAX_WORD_LEN) return;
+    char name[MAX_WORD_LEN] = {};
     strncpy(name, prev, sizeof(name) / sizeof(*name));
-    name[n+1] = 0;
+    name[n + 1] = 0;
 
-    if (root->valid) {
-        printf("%s = %u\n", name, root->value);
-    }
+    if (root->valid) printf("%s = %u\n", name, root->value);
 
     for (size_t i = 0; i < MAX_CHILD_CNT; i++) {
         if (!root->childs[i]) continue;
@@ -110,7 +191,7 @@ void trie_dot(node_t *const root, char *prev) {
     size_t n = strlen(prev);
     char name[128] = {};
     strncpy(name, prev, sizeof(name) / sizeof(*name));
-    name[n+1] = 0;
+    name[n + 1] = 0;
 
     for (size_t i = 0; i < MAX_CHILD_CNT; i++) {
         if (!root->childs[i]) continue;
@@ -118,6 +199,12 @@ void trie_dot(node_t *const root, char *prev) {
         printf("    %s -> %s [label=\"%c\"]\n", n > 0 ? prev : "__root__", name, (char) i);
         trie_dot(root->childs[i], name);
     }
+}
+
+void word_stats_deinit(word_stats_t *stat) {
+    if (stat == NULL) return;
+    word_stats_deinit(stat->next);
+    free(stat);
 }
 
 int main(int argc, char **argv) {
@@ -137,7 +224,6 @@ int main(int argc, char **argv) {
 
         memcpy(buff, line, read);
         buff[read] = 0;
-        // printf("%s", buff);
         for (char *word = strtok(buff, WORD_DELIM); word; word = strtok(NULL, WORD_DELIM)) {
             if (*word == 0 || *word == '-' || strcmp(word, "-") == 0) continue;
             node_t *node = trie_get(root, word);
@@ -149,7 +235,13 @@ int main(int argc, char **argv) {
     fclose(fp);
     if (line) free(line);
 
-    trie_valid(root, "");
+    word_stats_t *stats = word_stat_init();
+    word_stats(stats, root, "");
+    stats = merge_sort(stats);
+    word_stats_print(stats);
+    word_stats_deinit(stats);
+
+    // trie_valid(root, "");
     // printf("digraph Tree {\n");
     // trie_dot(root, "");
     // printf("}\n");
@@ -158,124 +250,3 @@ int main(int argc, char **argv) {
 
     return 0;
 }
-
-int8_t type(unsigned char c) {
-    // -1 -> invalid
-    // 0 -> break character
-    // 1 -> valid character
-    if (c < 32) return -1;
-    if (c <= 47) return 0;
-    if (c <= 57) return 1;
-    if (c <= 64) return 0;
-    if (c <= 90) return 1;
-    if (c <= 96) return 0;
-    if (c <= 122) return 1;
-    if (c <= 126) return 0;
-    return -1;
-}
-
-
-
-/*
-32:  
-33: !
-34: "
-35: #
-36: $
-37: %
-38: &
-39: '
-40: (
-41: )
-42: *
-43: +
-44: ,
-45: -
-46: .
-47: /
-
-48: 0
-49: 1
-50: 2
-51: 3
-52: 4
-53: 5
-54: 6
-55: 7
-56: 8
-57: 9
-
-58: :
-59: ;
-60: <
-61: =
-62: >
-63: ?
-64: @
-
-65: A
-66: B
-67: C
-68: D
-69: E
-70: F
-71: G
-72: H
-73: I
-74: J
-75: K
-76: L
-77: M
-78: N
-79: O
-80: P
-81: Q
-82: R
-83: S
-84: T
-85: U
-86: V
-87: W
-88: X
-89: Y
-90: Z
-
-91: [
-92: \
-93: ]
-94: ^
-95: _
-96: `
-
-97: a
-98: b
-99: c
-100: d
-101: e
-102: f
-103: g
-104: h
-105: i
-106: j
-107: k
-108: l
-109: m
-110: n
-111: o
-112: p
-113: q
-114: r
-115: s
-116: t
-117: u
-118: v
-119: w
-120: x
-121: y
-122: z
-
-123: {
-124: |
-125: }
-126: ~
-*/
